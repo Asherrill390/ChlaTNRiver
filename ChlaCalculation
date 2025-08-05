@@ -1,0 +1,17 @@
+#Compute chlorophyll-a values
+def chlorophyll_f(All_Filt):
+    chlorophyll = All_Filt.expression('49.79048+(799.2818*B2)+(-1859.88*B3)+(1231.197*B4)', {
+        'B2':All_Filt.select('B2'),
+        'B3':All_Filt.select('B3'),
+        'B4':All_Filt.select('B4'),
+    }).rename('chlorophyll')
+    return All_Filt.addBands(chlorophyll)
+
+chlorophyll = All_Filt.map(chlorophyll_f)
+visParams = {"min": 0, "max": 100, "palette": ['#9aff14','#fbff19','#ff8319','#ff2419']}
+m.addLayer(chlorophyll.select('chlorophyll'), visParams)
+
+#Add TimeSlider
+m.add_time_slider(chlorophyll.select("chlorophyll"), visParams, time_interval=1)
+
+m
