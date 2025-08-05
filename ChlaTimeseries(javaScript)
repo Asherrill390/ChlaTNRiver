@@ -1,0 +1,82 @@
+
+//Import Landsat 8 Image
+var LS8_TOA = (
+ ee.ImageCollection('LANDSAT/LC08/C02/T1_TOA')
+.filterDate('2024-01-01', '2024-12-31')
+.filterBounds(riverMask)
+)
+
+//Import Landsat 9 Data
+var LS9_TOA = (
+  ee.ImageCollection("LANDSAT/LC09/C02/T1_TOA")
+  .filterDate('2024-01-01', '2024-12-30')
+  .filterBounds(riverMask))
+
+//Merge all image collections 
+var All_TOA = LS8_TOA.merge(LS9_TOA)
+
+//Get count of all images within collection
+var pre_count = All_TOA.size().getInfo()
+print(pre_count)
+
+//Filter out images that are less than 1 percent of clouds
+var LS8_Filt = LS8_TOA.filterMetadata('CLOUD_COVER', 'less_than', 10)
+var LS9_Filt = LS9_TOA.filterMetadata('CLOUD_COVER', 'less_than', 10)
+var All_Filt = LS8_Filt.merge(LS9_Filt).sort('system:time_start')
+
+//Print a count of all images before filter
+print('Images Before Cloud Filter: ' + pre_count)
+
+//Print a count of all images after filter
+print(All_Filt.size());
+
+
+//Display Image Collection as a Mosaic
+Map.addLayer(All_Filt,
+{bands: ['B4','B3','B2'],
+  min: 0,
+  max:0.3
+}, 'Landsat 8/9 Image Collection');
+Map.centerObject(All_Filt,10);
+
+var All_Filt = All_Filt.map(function(All_Filt){
+  return All_Filt.clip(riverMask);
+})
+
+//Compute chlorophyll-a values
+function chlorophyll_f(All_Filt){
+  var chlorophyll = All_Filt.expression('49.79048+(799.2818*B2)+(-1859.88*B3)+(1231.197*B4)', {
+    'B2':All_Filt.select('B2'),
+    'B3':All_Filt.select('B3'),
+    'B4':All_Filt.select('B4'),
+}).rename('chlorophyll');
+return All_Filt.addBands(chlorophyll)
+}
+var chlorophyll = All_Filt.map(chlorophyll_f);
+var visParams = {min: 0, max: 100, palette: ['#9aff14','#fbff19','#ff8319','#ff2419']}
+print(chlorophyll);
+Map.addLayer(chlorophyll.select('chlorophyll'), visParams);
+
+//Create Timeseries Chart
+var chla = chlorophyll.select('chlorophyll');
+var chlaTime = chla.map(function(image){
+  return image
+  .copyProperties(image, ['system:time_start']);
+});
+
+print(chlaTime)
+
+var chart = ui.Chart.image.series({
+  imageCollection: chlaTime.select('chlorophyll'),
+  region: riverMask,
+  reducer: ee.Reducer.mean(),
+  scale: 4638.3,
+})
+  .setOptions({
+    title: 'Chlorophyll-a Values in TN River',
+    vAxis: {title: 'Chl-a (ug/L)'},
+    pointSize: 2,
+  })
+;
+
+print(chart)
