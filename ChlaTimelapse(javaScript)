@@ -1,0 +1,88 @@
+
+//Import Landsat 8 Image
+var LS8_TOA = (
+ ee.ImageCollection('LANDSAT/LC08/C02/T1_TOA')
+.filterDate('2024-01-01', '2024-12-31')
+.filterBounds(riverMask)
+)
+
+//Import Landsat 9 Data
+var LS9_TOA = (
+  ee.ImageCollection("LANDSAT/LC09/C02/T1_TOA")
+  .filterDate('2024-01-01', '2024-12-30')
+  .filterBounds(riverMask))
+
+//Merge all image collections 
+var All_TOA = LS8_TOA.merge(LS9_TOA)
+
+//Get count of all images within collection
+var pre_count = All_TOA.size().getInfo()
+print(pre_count)
+
+//Filter out images that are less than 1 percent of clouds
+var LS8_Filt = LS8_TOA.filterMetadata('CLOUD_COVER', 'less_than', 10)
+var LS9_Filt = LS9_TOA.filterMetadata('CLOUD_COVER', 'less_than', 10)
+var All_Filt = LS8_Filt.merge(LS9_Filt).sort('system:time_start')
+
+//Print a count of all images before filter
+print('Images Before Cloud Filter: ' + pre_count)
+
+//Print a count of all images after filter
+print(All_Filt.size());
+
+
+//Display Image Collection as a Mosaic
+Map.addLayer(All_Filt,
+{bands: ['B4','B3','B2'],
+  min: 0,
+  max:0.3
+}, 'Landsat 8/9 Image Collection');
+Map.centerObject(All_Filt,10);
+
+var All_Filt = All_Filt.map(function(All_Filt){
+  return All_Filt.clip(riverMask);
+})
+
+//Compute chlorophyll-a values
+function chlorophyll_f(All_Filt){
+  var chlorophyll = All_Filt.expression('49.79048+(799.2818*B2)+(-1859.88*B3)+(1231.197*B4)', {
+    'B2':All_Filt.select('B2'),
+    'B3':All_Filt.select('B3'),
+    'B4':All_Filt.select('B4'),
+}).rename('chlorophyll');
+return All_Filt.addBands(chlorophyll)
+}
+var chlorophyll = All_Filt.map(chlorophyll_f);
+var visParams = {min: 0, max: 100, palette: ['#9aff14','#fbff19','#ff8319','#ff2419']}
+print(chlorophyll);
+Map.addLayer(chlorophyll.select('chlorophyll'), visParams);
+
+//Add DOY Property
+var chlorophyllDOY = chlorophyll.map(function(chlorophyll){
+  var doy = ee.Date(chlorophyll.get('system:time_start')).getRelative('day','year');
+  return chlorophyll.set('doy', doy);
+});
+
+print(chlorophyllDOY)
+
+//Add Timestamp to images
+
+//Prepare Chlorophyll layer for export
+var chlExport = function (chlorophyll) {
+  return chlorophyll.select('chlorophyll').visualize(visParams).uint8()
+};
+
+var exportChla = chlorophyll.map(chlExport);
+
+//Export
+Export.video.toDrive({
+  collection: exportChla,
+  description: 'chlorophyll-a timelapse',
+  folder: 'GEE_Exports',
+  fileNamePrefix: 'Chla_Timelapse',
+  framesPerSecond: 5,
+  scale: 30,
+  maxFrames:1000,
+  region: riverMask,
+  crs: 'EPSG:32616'
+});
