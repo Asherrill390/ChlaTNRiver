@@ -1,0 +1,54 @@
+import ee
+import geemap
+m= geemap.Map()
+
+StudyArea = \
+\
+\
+[
+{
+    "type": "rectangle"
+}
+] 
+ee.Geometry.Polygon(
+[[[-85.74640431559557, 35.51750681355761],
+[-85.74640431559557, 34.98031147991959],
+[-84.63403859293932, 34.98031147991959],
+[-84.63403859293932, 35.51750681355761]]], None, False)
+riverMask = ee.FeatureCollection("projects/chl-amodeltnriver/assets/TNRiver_SHP")
+
+#Import Landsat 8 Image
+LS8_TOA = (
+ee.ImageCollection('LANDSAT/LC08/C02/T1_TOA') \
+.filterDate('2024-01-01', '2024-12-31') \
+.filterBounds(riverMask)
+)
+
+#Import Landsat 9 Data
+LS9_TOA = (
+ee.ImageCollection("LANDSAT/LC09/C02/T1_TOA") \
+.filterDate('2024-01-01', '2024-12-30') \
+.filterBounds(riverMask))
+
+#Merge all image collections
+All_TOA = LS8_TOA.merge(LS9_TOA)
+
+#Filter out images that are less than 1 percent of clouds
+LS8_Filt = LS8_TOA.filterMetadata('CLOUD_COVER', 'less_than', 10)
+LS9_Filt = LS9_TOA.filterMetadata('CLOUD_COVER', 'less_than', 10)
+All_Filt = LS8_Filt.merge(LS9_Filt).sort('"system":time_start')
+
+#Display Image Collection as a Mosaic
+m.addLayer(All_Filt,
+{"bands": ['B4','B3','B2'],
+    "min": 0,
+    "max":0.3
+}, 'Landsat 8/9 Image Collection')
+m.centerObject(All_Filt,10)
+
+def func_vcx(All_Filt):
+    return All_Filt.clip(riverMask)
+
+All_Filt = All_Filt.map(func_vcx)
+
+m
