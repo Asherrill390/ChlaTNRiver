@@ -1,0 +1,128 @@
+import ee
+import geemap
+m = geemap.Map()
+# %pip install pygis
+# %pip install cartopy
+from geemap import cartoee
+import matplotlib.pyplot as plt
+
+#Create blended image for visualization
+image = (
+    All_Filt
+    .first()
+)
+vis_Params = {'bands': ['B4','B3','B2'], 'min': 0, 'max':0.3}
+m.setCenter(-85.18190644821023,35.14878596310922, 9.5)
+m.addLayer(image, vis_Params, 'LandsatBase')
+
+chlaRiver = (
+    chlorophyll
+    .first()
+)
+visP = {'bands': ['chlorophyll'], 'min':0, 'max':100, 'palette':['green','yellow','orange','red']}
+m.addLayer(chlaRiver, visP , "Chla Values")
+
+landsat = image.visualize(**vis_Params)
+blend = landsat.blend(chlaRiver.visualize(**visP))
+
+m.addLayer(blend, {}, "Blend")
+#Blended collection and Time slider
+vis_Params = {'bands': ['B4','B3','B2'], 'min': 0, 'max':0.3}
+visP = {'bands': ['chlorophyll'], 'min':0, 'max':100, 'palette':['#008000','#FFFF00','#FFA500','#FF0000']}
+
+# Convert the image collections to lists
+landsat_list = All_Filt.toList(All_Filt.size())
+chla_list = chlorophyll.toList(chlorophyll.size())
+
+# Check both collections have the same number of images
+size = All_Filt.size().getInfo()
+assert size == chlorophyll.size().getInfo(), "Collections must have same length"
+
+# Function to blend images by index
+def blend_by_index(i):
+    i = ee.Number(i)
+    l_img = ee.Image(landsat_list.get(i)).visualize(**vis_Params)
+    c_img = ee.Image(chla_list.get(i)).visualize(**visP)
+    blended = l_img.blend(c_img)
+    
+    # Use timestamp from one of the original images
+    date = ee.Image(landsat_list.get(i)).date()
+    return blended.set('system:time_start', date.millis())
+
+# Create a list of blended images
+blended_list = ee.List([blend_by_index(i) for i in range(size)])
+
+# Convert list back to an ImageCollection
+blended_collection = ee.ImageCollection(blended_list)
+
+# Add the blended collection as a time slider
+m.add_time_slider(blended_collection, vis_params={}, layer_name="Blended Time Series")
+m
+
+#Create a sample output image
+w = 0.4
+h = 0.3
+region = [-85.7165307, 34.9806817, -84.6608307, 35.5828536]
+
+fig = plt.figure(figsize=(10,8))
+
+testImage = blended_collection.first()
+
+ax = cartoee.get_map(blended_collection, region=region, vis_params={})
+cartoee.add_gridlines(ax, interval=[0.2, 0.2], linestyle=":")
+
+#add north arrow
+north_arrow_dict = {
+    "text": "N",
+    "xy": (0.10, 0.9),
+    "arrow_length": 0.15,
+    "text_color": "white",
+    "arrow_color": "white",
+    "fontsize": 20,
+    "width": 5,
+    "headwidth": 15,
+    "ha": "center",
+    "va": "center",
+}
+cartoee.add_north_arrow(ax,**north_arrow_dict)
+
+#Add Scale Bar
+scale_bar_dict = {
+    "length": 1,
+    "xy": (0.1, 0.05),
+    "linewidth": 3,
+    "fontsize": 12,
+    "color": "white",
+    "unit": "mile",
+    "ha": "center",
+    "va": "bottom",
+}
+cartoee.add_scale_bar_lite(ax, **scale_bar_dict)
+
+cartoee.add_colorbar(ax, visP, loc="right", orientation="vertical", label="Chlorophyll-A Values")
+
+ax.set_title(label='Chlorophyll-a Values in the TN River (01-02-2024)', fontsize=15)
+
+plt.show()
+
+# Creating a Timelapse
+cartoee.get_image_collection_gif(
+    ee_ic=blended_collection,
+    out_dir='timelapse',
+    out_gif="chla.gif",
+    vis_params={},
+    region=region,
+    fps=2,
+    mp4=True,
+    grid_interval=(0.2,0.2),
+    plot_title="Chlorophyll-a Values in the TN River",
+    date_format='MM-dd-YYYY',
+    fig_size=(10,8),
+    dpi_plot=300,
+    file_format="jpg",
+    north_arrow_dict=north_arrow_dict,
+    scale_bar_dict=scale_bar_dict,
+    cartoee.add_colorbar(ax, visP, loc="right", orientation="vertical", label="Chlorophyll-A Values")
+    verbose=True,
+)
+geemap.show_image('timelapse/chla.gif')
