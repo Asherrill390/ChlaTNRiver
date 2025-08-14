@@ -1,0 +1,23 @@
+//Access and filter Global Surface Water data
+var gsw = ee.Image("JRC/GSW1_4/GlobalSurfaceWater");
+var water = gsw.select('max_extent');
+var visParams = {
+  min:0,
+  max:1,
+  palette: ['white', 'blue']
+};
+//Create mask and convert raster to vector
+var waterMasked = water.selfMask().reduceToVectors({
+  geometryType: 'polygon',
+  reducer:ee.Reducer.countEvery(),
+  scale: 30,
+  geometry: River,
+  maxPixels: 1e13
+});
+//Export vector data as SHP
+Export.table.toDrive({
+  collection: waterMasked,
+  description: 'TN River_SHP',
+  fileFormat: 'SHP'
+});
+Map.addLayer(waterMasked, visParams, 'Max Extent');
