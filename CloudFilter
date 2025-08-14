@@ -7,22 +7,22 @@ riverMask = ee.FeatureCollection("projects/chl-amodeltnriver/assets/TNRiver_SHP"
 #Import Landsat 8 Image
 LS8_TOA = (
 ee.ImageCollection('LANDSAT/LC08/C02/T1_TOA') \
-.filterDate('2024-01-01', '2024-02-28') \
+.filterDate('2024-01-01', '2025-06-30') \
 .filterBounds(riverMask)
 )
 
 #Import Landsat 9 Data
 LS9_TOA = (
 ee.ImageCollection("LANDSAT/LC09/C02/T1_TOA") \
-.filterDate('2024-01-01', '2025-02-28') \
+.filterDate('2024-01-01', '2025-06-30') \
 .filterBounds(riverMask))
 
 #Merge all image collections
 All_TOA = LS8_TOA.merge(LS9_TOA)
 
 #Filter out images that are less than 1 percent of clouds
-LS8_Filt = LS8_TOA.filterMetadata('CLOUD_COVER', 'less_than', 6)
-LS9_Filt = LS9_TOA.filterMetadata('CLOUD_COVER', 'less_than', 6)
+LS8_Filt = LS8_TOA.filterMetadata('CLOUD_COVER', 'less_than', 4)
+LS9_Filt = LS9_TOA.filterMetadata('CLOUD_COVER', 'less_than', 4)
 All_Filt = LS8_Filt.merge(LS9_Filt).sort('"system":time_start')
 
 #Display Image Collection as a Mosaic
