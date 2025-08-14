@@ -112,7 +112,7 @@ cartoee.get_image_collection_gif(
     out_gif="chla.gif",
     vis_params={},
     region=region,
-    fps=2,
+    fps=3,
     mp4=True,
     grid_interval=(0.2,0.2),
     plot_title="Chlorophyll-a Values in the TN River",
@@ -122,7 +122,6 @@ cartoee.get_image_collection_gif(
     file_format="jpg",
     north_arrow_dict=north_arrow_dict,
     scale_bar_dict=scale_bar_dict,
-    cartoee.add_colorbar(ax, visP, loc="right", orientation="vertical", label="Chlorophyll-A Values")
     verbose=True,
 )
 geemap.show_image('timelapse/chla.gif')
