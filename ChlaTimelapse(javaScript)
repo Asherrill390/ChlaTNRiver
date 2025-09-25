@@ -30,7 +30,6 @@ print('Images Before Cloud Filter: ' + pre_count)
 //Print a count of all images after filter
 print(All_Filt.size());
 
-
 //Display Image Collection as a Mosaic
 Map.addLayer(All_Filt,
 {bands: ['B4','B3','B2'],
@@ -64,8 +63,6 @@ var chlorophyllDOY = chlorophyll.map(function(chlorophyll){
 });
 
 print(chlorophyllDOY)
-
-//Add Timestamp to images
 
 //Prepare Chlorophyll layer for export
 var chlExport = function (chlorophyll) {
