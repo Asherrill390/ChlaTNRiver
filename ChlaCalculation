@@ -1,6 +1,6 @@
 #Compute chlorophyll-a values
 def chlorophyll_f(All_River):
-    chlorophyll = All_River.expression('49.79048+(799.2818*B2)+(-1859.88*B3)+(1231.197*B4)', {
+    chlorophyll = All_River.expression('88.3930-(9174.86*B3)+(2807.0339*B4)', {
         'B2':All_River.select('B2'),
         'B3':All_River.select('B3'),
         'B4':All_River.select('B4'),
